@@ -1,5 +1,24 @@
 const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
+const cors = require('cors');
+
 const app = express();
+const server = http.createServer(app); 
+
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type'],
+}));
+
+const io = socketIo(server, {
+    cors: {
+        origin: '*',
+        methods: ['GET', 'POST']
+    }
+});
+
 const port = 3000;
 
 app.use(express.json());
@@ -35,9 +54,26 @@ app.get('/calculator', (req, res) => {
             return res.status(400).json({ error: 'Invalid operation. Use add, subtract, multiply, or divide' });
     }
 
+    io.emit('calculationResult', { a: num1, b: num2, operation, result });
+
     res.json({ result });
 });
 
-app.listen(port, () => {
+io.on('connection', (socket) => {
+    console.log('A user connected');
+    
+    socket.emit('welcomeMessage', { message: 'Welcome to the Calculator API Socket.IO server!' });
+
+    socket.on('disconnect', () => {
+        console.log('A user disconnected');
+    });
+});
+
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send('Something broke!');
+});
+
+server.listen(port, () => {
     console.log(`Calculator API is running on http://localhost:${port}`);
 });
